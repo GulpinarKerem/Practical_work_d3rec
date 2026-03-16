@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+*.pt
+*.zip
+
+.ipynb_checkpoints/
+
+raw_data/

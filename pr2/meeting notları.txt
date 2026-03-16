@@ -1,0 +1,23 @@
+meeting notları
+
+
+Diffusion içindeki importance sampling sırasında oluşturulan
+timestep olasılıkları (pt_prob) 1’e toplamıyor.
+C5 + popularity bins ile bazı timestep’lerin weight’i 0’a çok yaklaşıyor
+
+importance samplingi kapicaz 
+
+veya models py da pt_prob = pt_prob / pt_prob.sum(-1, keepdim=True)
+
+
+
+
+2 datasetle dene, compare with the diversity metrics, set of 
+
+for the main model look for hyperparameter search cuz changing data etc.
+
+what actually changes from the original ones , harness different probability distributions and analyze 
+
+implement a mechanizm which harnesses custom probabilities like for 1 group of users etc. 
+
+ 

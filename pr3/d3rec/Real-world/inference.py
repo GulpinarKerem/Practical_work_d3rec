@@ -128,7 +128,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser(description="D3Rec", add_help=True)
     # inference.py içindeki parser kısmına ekle:
     # get_args_parser içindeki ilgili satırı bul ve değiştir:
-    parser.add_argument('--str_cols', type=list, default=['UserId', 'MovieId', 'Rating', 'Timestamp', 'cate', 'user_pref'])
+    parser.add_argument('--str_cols', type=str, nargs='+', default=['user', 'item', 'rating', 'timestamp', 'cate', 'user_pref'])
     parser.add_argument('--seed', default=1, type=int)
     parser.add_argument('--cuda', default=0, type=int)
     parser.add_argument('--batch_size', default=400, type=int)

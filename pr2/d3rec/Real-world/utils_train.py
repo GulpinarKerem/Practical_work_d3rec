@@ -17,7 +17,7 @@ def reweight_loss(w_min, w_max, prob, matrix_F):
     max_reweight = reweight.max(dim=-1)[0].unsqueeze(-1)
 
     denom = (max_reweight - min_reweight)
-    denom = denom.clamp_min(1e-8)  # 0'a bölmeyi engeller
+    denom = denom.clamp_min(1e-8)  #prevent division by 0 
     return w_min + (w_max - w_min) * (reweight - min_reweight) / denom
 
 

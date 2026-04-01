@@ -15,12 +15,12 @@ def main(args, dataset_dir_path, best_model_path):
     print(f'Use {args.device}')
     print("Starting time: ", time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
     
-    # Modelin varlığını kontrol et
+    
     if not os.path.exists(best_model_path):
         print(f"HATA: Model dosyası bulunamadı! Yol: {best_model_path}")
         return
 
-    # Veriyi yükle (use_cache=False yaparak güncel binleri aldığından emin oluyoruz)
+    
     dataset, _, _, test_dataset, matrix_F = load_data(args, dataset_dir_path)
     sp_train, sp_valid, sp_test = dataset.sp_train, dataset.sp_valid, dataset.sp_test
     loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
@@ -40,14 +40,12 @@ def main(args, dataset_dir_path, best_model_path):
         dim_step=args.dim_step,
         dropout=args.dropout).to(args.device)
 
-    # Modeli yükleme
+    
     print(f"Loading model from: {best_model_path}")
     model.load_state_dict(torch.load(best_model_path, map_location=args.device, weights_only=False).state_dict())
     model.eval()
 
-    # =========================================================================
-    # [DEBUG] REPRESENTATION SUCCESS TEST (PHASE 4 PROOF)
-    # =========================================================================
+    #phase4
     print("\n" + "="*50)
     print("[DEBUG] EXTREME TARGET TEST: target = [0, 0, 1] (Tail-Only)")
     
@@ -60,7 +58,7 @@ def main(args, dataset_dir_path, best_model_path):
             first_batch_x, _, _ = next(it)
             first_batch_x = first_batch_x[:num_debug_users].to(args.device)
             
-            # İpucundan aldığımız gerçek metod adı: sample_new_interaction
+            # sample_new_interaction
             sampled_x = diffusion.sample_new_interaction(
                 model, 
                 first_batch_x, 
@@ -69,7 +67,7 @@ def main(args, dataset_dir_path, best_model_path):
                 args.sampling_steps
             )
             
-            # Zaten izlenenleri ele
+            #eliminate
             sampled_x[first_batch_x > 0] = -1e9
             
             _, top_indices = torch.topk(sampled_x, k=10, dim=-1)
@@ -91,7 +89,7 @@ def main(args, dataset_dir_path, best_model_path):
             print(f"[DEBUG ERROR] Histogram testi sırasında hata: {e}")
     print("="*50 + "\n")
 
-    # Sıcaklık (Temperature) döngüsü
+    #temp loop
     for temperature in [0.1, 0.5, 1.0, 5.0, 10.0]:
         start = time.time()
         results = evaluate(args, model, diffusion, loader, sp_test, sp_train + sp_valid, args.topK, dataset.item_category, dataset.num_cate, temperature, is_best=True)
@@ -149,7 +147,7 @@ if __name__ == '__main__':
     
     dataset_dir_path = os.path.join(os.getcwd(), 'dataset', args.dataset_name)
     
-    # Model yolunu r"..." formatında tutmak Windows yolları için en güvenlisi
+    #please change accordingly
     best_model_path = r"Y:\Desktop\phase34\d3rec\Real-world\Best_models-C5-[6,2,2]\ml-1m\best_model.pt"
 
     main(args, dataset_dir_path, best_model_path)

@@ -73,7 +73,7 @@ def main(args, dataset_dir_path, best_model_path):
                 user_gender_map,    # user_gender_map (eklendi)
                 is_best=False
             )
-            # Evaluate artık tüm listeyi döndüğü için Recall@20'yi (indis 2, k=1) alıyoruz
+            
             val_recall = val_recall_results[2][1]
             print(f'Evaluation validation recall@20: {val_recall:.4f}, time: {str(timedelta(seconds=int(time.time() - start)))}')
 
@@ -109,7 +109,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser(description="D3Rec", add_help=True)
 
     ##### Training Setting #####
-    # train.py içindeki get_args_parser fonksiyonuna ekle:
+    
     parser.add_argument('--str_cols', default=['user', 'item', 'rating', 'timestamp', 'cate', 'user_pref'], type=str, nargs="+")
     parser.add_argument('--seed', default=1, type=int, help="Random seed")
     parser.add_argument('--cuda', default=0, type=int, help="GPU index")

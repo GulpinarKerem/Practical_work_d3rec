@@ -107,8 +107,7 @@ def compute_metric(target_items, predict_items, topK, item_category, n_cate):
 def evaluate(args, model, diffusion, loader, sp_test, sp_train_valid, topk, item_category, n_cate, temperature, user_gender_map, is_best=False):
     model.eval()
     
-    # DEBUG: Map'te ne var bir bakalım (İlk 5 tanesi)
-    # print(f"DEBUG: Gender Map keys (sample): {list(user_gender_map.keys())[:5]}")
+  
     
     results_all = {'target': [], 'pred': []}
     results_female = {'target': [], 'pred': []}
@@ -126,15 +125,10 @@ def evaluate(args, model, diffusion, loader, sp_test, sp_train_valid, topk, item
             modified_prob = prob.clone()
             
             for i in range(len(modified_prob)):
-                # ML-1M dataseti genellikle 0-tabanlı veya 1-tabanlı UID kullanır.
-                # Hem i+1 hem i olarak deniyoruz:
                 uid_alt1 = current_user_idx + i + 1
                 uid_alt2 = current_user_idx + i
                 
-                # İkisinden biri map'te var mı bak:
                 gender = user_gender_map.get(uid_alt1, user_gender_map.get(uid_alt2, "Unknown"))
-                
-                # EĞER HALA UNKNOWN İSE: Map içindeki string/int farkına bakıyoruz
                 if gender == "Unknown":
                     gender = user_gender_map.get(str(uid_alt1), user_gender_map.get(str(uid_alt2), "M"))
 
@@ -144,12 +138,12 @@ def evaluate(args, model, diffusion, loader, sp_test, sp_train_valid, topk, item
             modified_prob = adjust_div(modified_prob, temperature)
             x_0_hat = diffusion.sample_new_interaction(model, x_0, modified_prob, args.guide_w, args.sampling_steps)
             
-            # Maskeleme ve Tahmin
+            #mask n guess
             x_0_hat[x_0 > 0] = -np.inf
             _, indices = torch.topk(x_0_hat, k=max(topk), dim=-1)
             preds = indices.cpu().numpy().tolist()
 
-            # GRUPLARA AYIRMA (Rapor için)
+            #groupem
             for i in range(len(preds)):
                 uid_check = current_user_idx + i + 1
                 gender_check = user_gender_map.get(uid_check, user_gender_map.get(current_user_idx + i, "M"))
@@ -168,7 +162,7 @@ def evaluate(args, model, diffusion, loader, sp_test, sp_train_valid, topk, item
 
             current_user_idx += len(x_0)
 
-    # Raporlama Kısmı
+    #report
     print(f"\n" + "="*30 + f" REPORT (Temp: {temperature}) " + "="*30)
     
     def get_metrics(res):
@@ -190,7 +184,7 @@ def evaluate(args, model, diffusion, loader, sp_test, sp_train_valid, topk, item
     
     print("="*80)
     
-    return metrics_all # Main döngüsü bozulmasın diye genel sonucu dönüyoruz
+    return metrics_all 
 
 
 def calculate_entropy(cnt_cate_list):

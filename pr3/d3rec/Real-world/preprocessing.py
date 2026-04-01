@@ -12,9 +12,8 @@ from sklearn.preprocessing import LabelEncoder
 def generate_popularity_bins(df_inter, item_col="item_id", user_col="user_id",
                              bin_labels=("high", "mid", "low"),
                              bin_ratios=(0.3, 0.3, 0.4)):
-    # Item popülerlik sayısını hesapla
+
     item_pop = df_inter.groupby(item_col).size().reset_index(name="popularity")
-    # Popülerliğe göre büyükten küçüğe sırala
     item_pop = item_pop.sort_values("popularity", ascending=False).reset_index(drop=True)
 
     total_pop = item_pop["popularity"].sum()
@@ -85,7 +84,7 @@ class PreProcess():
             self.num_interaction = clean_dataset_info['num_interaction']
             self.matrix_F = clean_dataset_info['matrix_F']
             self.item_category = clean_dataset_info['item_category']
-            # Gender bilgisini cache'den çekiyoruz
+            #gender info von cache
             self.user_gender = clean_dataset_info.get('user_gender', {})
 
             print('Done')
@@ -102,10 +101,10 @@ class PreProcess():
                 file_path = os.path.join(dir_path, f'{args.file_name}')
                 
                 print('Read interaction datas')
-                # MovieLens 1M için sadece ilk 4 sütunu oku, cate ve user_pref'i biz sonra ekleyeceğiz
+                
                 df = pd.read_csv(file_path, sep=args.sep, names=args.str_cols[:4], engine='python')
                 
-                # Olmayan sütunları geçici olarak boş oluştur
+                
                 df[self.str_cate] = "[]" 
                 df[self.str_user_pref] = 0.0
                 
@@ -138,7 +137,7 @@ class PreProcess():
 
             self.matrix_F = self.make_cate_multihot_matrix_F(df_clean)
             
-            # Cinsiyet bilgilerini yüklüyoruz
+            #load gender info
             print('Processing gender information...')
             self.user_gender = get_user_gender_dict(dir_path)
 
@@ -150,7 +149,7 @@ class PreProcess():
                 'density': self.density, 'num_interaction': self.num_interaction,
                 'num_cate': self.num_cate, 'matrix_F': self.matrix_F,
                 'item_category': self.item_category,
-                'user_gender': self.user_gender # Cache'e kaydediyoruz
+                'user_gender': self.user_gender 
             }
             torch.save(info_dict, clean_dataset_split_path)
             print('Data ready and cached.')
@@ -168,31 +167,21 @@ class PreProcess():
         return df_clean
 
     def clean_and_sort(self, df, drop_num, drop_rating, le_user, le_item):
-        # 1. Tekrarları sil
-        df = df.drop_duplicates(subset=[self.str_user, self.str_item]).reset_index(drop=True)
         
-        # 2. Düşük ratingleri at
+        df = df.drop_duplicates(subset=[self.str_user, self.str_item]).reset_index(drop=True)
         if drop_rating: 
             df = df[df[self.str_rating] >= drop_rating]
-        
-        # 3. Popülerlik binlerini hesapla (Araştırma için 3-3-4 dağılımı)
         pop_bins = generate_popularity_bins(df, 
                                             item_col=self.str_item, 
                                             user_col=self.str_user,
                                             bin_labels=("high", "mid", "low"), 
                                             bin_ratios=(0.3, 0.3, 0.4))
         
-        # 4. Binleri ana tabloya ekle
-        df = df.merge(pop_bins, on=self.str_item, how="left")
         
-        # 5. Bin bilgisini 'cate' sütununa yaz (Modelin anlayacağı format)
+        df = df.merge(pop_bins, on=self.str_item, how="left")
         df[self.str_cate] = df["pop_bin"].apply(lambda x: [x])
-
-        # !!! KRİTİK NOKTA: Fazla olan pop_bin sütununu burada siliyoruz ki 6 sütun kalsın
         if "pop_bin" in df.columns:
             df = df.drop(columns=["pop_bin"])
-
-        # 6. Sırala ve Encode et
         df_sorted = df.sort_values([self.str_user, self.str_time])
         df_sorted[self.str_user] = le_user.fit_transform(df_sorted[self.str_user])
         df_sorted[self.str_item] = le_item.fit_transform(df_sorted[self.str_item])

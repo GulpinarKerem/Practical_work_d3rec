@@ -82,7 +82,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser(description="D3Rec", add_help=True)
     
     ##### Training Setting #####
-    # Preprocessing için gereken eksik parametreler
+    #missing param edit
     parser.add_argument('--str_cols', default=['user', 'item', 'rating', 'timestamp', 'cate', 'user_pref'], 
                         type=str, nargs="+", help="Interaction dataframe column names")
     parser.add_argument('--file_name', default='data.csv', type=str, help="Interaction file name")

@@ -16,7 +16,7 @@ def main(args, dataset_dir_path, best_model_path):
     print(f'Use {args.device}')
     print("Starting time: ", time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
     
-    # Modelin varlığını kontrol et
+    #model existance 
     if not os.path.exists(best_model_path):
         print(f"HATA: Model dosyası bulunamadı! Yol: {best_model_path}")
         return
@@ -40,10 +40,10 @@ def main(args, dataset_dir_path, best_model_path):
         dim_step=args.dim_step,
         dropout=args.dropout).to(args.device)
 
-    # Modeli yükleme
+    
     model.load_state_dict(torch.load(best_model_path, map_location='cpu', weights_only=False).state_dict())
 
-    # Sıcaklık (Temperature) döngüsü - Rapordaki sonuçları buradan alıyoruz
+    #temp loop
     for temperature in [0.1, 0.5, 1.0, 5.0, 10.0]:
         start = time.time()
         results = evaluate(args, model, diffusion, loader, sp_test, sp_train + sp_valid, args.topK, dataset.item_category, dataset.num_cate, temperature, is_best=True)
@@ -99,10 +99,10 @@ if __name__ == '__main__':
     set_random_seed(random_seed=args.seed)
     args.device = f'cuda:{args.cuda}' if torch.cuda.is_available() else 'cpu'
     
-    # 1. VERİ YOLU
+    #datadirectory 
     dataset_dir_path = os.path.join(os.getcwd(), 'dataset', args.dataset_name)
     
-    # 2. MODEL YOLU (BURAYI SENİN KLASÖRÜNE GÖRE AYARLADIM)
+    #please change accordingly 
     best_model_path = r"Y:\Desktop\Practica_work\d3rec\Real-world\Best_models-C5-[6,2,2]\ml-1m\best_model.pt"
 
     main(args, dataset_dir_path, best_model_path)

@@ -135,21 +135,21 @@ def evaluate(args, model, diffusion, loader, gt_items, consumed_items, topK, ite
             predict_items.extend(indices)
 
         if is_best is True:
-            # --- DEBUG LOG BAŞLANGIÇ ---
-            # İlk 50 kullanıcının (K=10 için) popülarite dağılımını analiz et
+            #debuglog
+            #k10 pop distribution for first 50
             first_50 = predict_items[:50]
-            # n_cate burada 3 (High, Mid, Low binleri) [cite: 756]
+            # n_cate burada 3 (high, mid, low binleri) cite: 756
             hist = np.zeros(n_cate) 
             
             for u_preds in first_50:
-                # Sadece ilk 10 öneriye bakıyoruz (K=10 senaryosu için) [cite: 774]
+                #first 10 recommendations cite: 774
                 for item in u_preds[:10]: 
-                    # item_category sözlüğünden bin bilgisini al (0, 1 veya 2) [cite: 160]
+                    #item_category sözlüğünden bin bilgisini al (0, 1 veya 2) cite: 160
                     hist[item_category[item]] += 1
             
             share = hist / hist.sum()
             print(f"[DEBUG] K=10 first50users hist={hist} share={share}")
-            # --- DEBUG LOG BİTİŞ ---
+            
 
             return compute_metric(target_items, predict_items, topK, item_category, n_cate)
 

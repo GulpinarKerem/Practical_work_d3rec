@@ -9,8 +9,7 @@ import scipy.sparse as sp
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 
-# ============================
-# POPULARITY BIN GENERATOR
+
 
 
 def generate_popularity_bins(df_inter, item_col="item_id", user_col="user_id",
@@ -28,27 +27,21 @@ def generate_popularity_bins(df_inter, item_col="item_id", user_col="user_id",
         low  → son %20
     """
 
-    # 1Item popülerlik sayısını hesapla
+    #populartiy
     item_pop = df_inter.groupby(item_col).size().reset_index(name="popularity")
 
-    # 2Popülerliğe göre büyükten küçüğe sırala
+    #descending popularity sort
     item_pop = item_pop.sort_values("popularity", ascending=False).reset_index(drop=True)
 
-    # 3Kümülatif pop oranı
+    #cumulatif
     total_pop = item_pop["popularity"].sum()
     item_pop["cum_ratio"] = item_pop["popularity"].cumsum() / max(total_pop, 1)
 
-    # 4Bin sınırları (0.2, 0.8, 1.0)
-    high_edge = bin_ratios[0]          # 0.2
-    mid_edge  = bin_ratios[0] + bin_ratios[1]  # 0.8
-
-    # 5Varsayılan bin = 'low'
+    
+    high_edge = bin_ratios[0]          
+    mid_edge  = bin_ratios[0] + bin_ratios[1]  
     item_pop["pop_bin"] = "low"
-
-    #Mid bin
     item_pop.loc[item_pop["cum_ratio"] <= mid_edge, "pop_bin"] = bin_labels[1]
-
-    #High bin
     item_pop.loc[item_pop["cum_ratio"] <= high_edge, "pop_bin"] = bin_labels[0]
 
     return item_pop[[item_col, "pop_bin"]]
@@ -111,7 +104,6 @@ class PreProcess():
                 print('Make clean datasets')
                 # Drop and Sort interactions chronologically.
                 df_clean = self.clean_and_sort(df, args.drop_num, args.drop_rating, le_user, le_item)
-                # Encoding category information
                 df_clean = self.enc_cate(df_clean)
                 print('Done')
 
@@ -232,7 +224,7 @@ class PreProcess():
             unactive_df = df_group_size[df_group_size < drop_num].index
             print(f"    # of unactive interactions ({str_col}): {len(unactive_df)}")
             if len(unactive_df) == 0:
-                return False  # False if unactive is None
+                return False  
             else:
                 return True
 
@@ -284,14 +276,14 @@ class PreProcess():
 
             return df
 
-        # Drop duplicated (user, tiem)
+        #  duplicated (user, tiem)
         df = df.drop_duplicates(subset=[self.str_user, self.str_item]).reset_index(drop=True)
         if drop_rating:
             df = drop_unreliable(df, drop_rating)
         if drop_num:
             df = core_setting(df, drop_num)
         df[self.str_rating] = 1.0
-        # 5 core filtre kontrol 
+        #5 core filtre kontrol 
         if drop_num:
             user_counts = df.groupby(self.str_user).size()
             item_counts = df.groupby(self.str_item).size()
@@ -304,7 +296,7 @@ class PreProcess():
                                             bin_labels=("high", "mid", "low"),
                                             bin_ratios=(0.3, 0.3, 0.4))
 
-        # df'ye popularity binini merge et
+        #df'ye popularity binini merge 
         df = df.merge(pop_bins, on=self.str_item, how="left")
 
         print("Popularity bins added. Example:")
@@ -322,7 +314,7 @@ class PreProcess():
             df = df.sample(frac=1).reset_index(drop=True)
             df_sorted = df.sort_values([self.str_user])
         else:
-            # sort chronologically
+            # sort
             df_sorted = df.sort_values([self.str_user, self.str_time])
 
         # Encode user/item id

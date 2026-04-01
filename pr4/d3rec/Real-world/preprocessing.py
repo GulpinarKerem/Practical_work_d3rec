@@ -9,8 +9,6 @@ import scipy.sparse as sp
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 
-# ============================
-# POPULARITY BIN GENERATOR
 
 def generate_popularity_bins(df_inter, item_col="item_id", user_col="user_id",
                              bin_labels=("high", "mid", "low"),
@@ -83,7 +81,6 @@ class PreProcess():
 
             print('Done')
         else:
-            # Sütun isimlerini güvenli tanımla
             self.str_user = args.str_cols[0]
             self.str_item = args.str_cols[1]
             self.str_rating = args.str_cols[2]
@@ -107,10 +104,7 @@ class PreProcess():
                 le_user = LabelEncoder()
                 le_item = LabelEncoder()
                 print('Make clean datasets')
-                # Kritik: Popülerlik binleri clean_and_sort içinde core_setting'den önce oluşturulacak
                 df_clean = self.clean_and_sort(df, args.drop_num, args.drop_rating, le_user, le_item)
-                
-                # Encoding category information (pop_bin to int)
                 df_clean = self.enc_cate(df_clean)
                 print('Done')
 
@@ -177,17 +171,14 @@ class PreProcess():
         return df_clean
 
     def clean_and_sort(self, df, drop_num, drop_rating, le_user, le_item):
-        # 1. Temel temizlik
         df = df.drop_duplicates(subset=[self.str_user, self.str_item]).reset_index(drop=True)
         if drop_rating:
             df = df[df[self.str_rating] >= drop_rating]
 
-        # --- KRİTİK: BURADA CATE SÜTUNUNU OLUŞTURUYORUZ ---
         pop_bins = generate_popularity_bins(df, item_col=self.str_item, user_col=self.str_user)
         df = df.merge(pop_bins, on=self.str_item, how="left")
         df[self.str_cate] = df["pop_bin"].apply(lambda x: [x])
         
-        # 2. Core setting (Artık cate sütunu var, çökmez)
         if drop_num:
             df = self.core_setting(df, drop_num)
 

@@ -16,10 +16,8 @@ def main(args, dataset_dir_path, best_model_path):
     print(f'Use {args.device}')
     print("Starting time: ", time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
 
-    # Veriyi yükle
     dataset, train_dataset, valid_dataset, test_dataset, matrix_F = load_data(args, dataset_dir_path)
     
-    # Cinsiyet haritasını preprocessing'den doğrudan çekiyoruz (Boş rapor gelmemesi için en sağlam yol)
     from preprocessing import get_user_gender_dict
     user_gender_map = get_user_gender_dict(dataset_dir_path)
     
@@ -64,11 +62,9 @@ def main(args, dataset_dir_path, best_model_path):
         print(f'Epoch {epoch:>3} - train loss: {loss: >10.4f}. time: {str(timedelta(seconds=int(time.time() - start)))}')
 
         if epoch % args.eval_freq == 0:
-            # evaluate artık metrik tuple'ı döndüğü için parçalıyoruz
             metrics_all = evaluate(args, model, diffusion, valid_loader, sp_valid, sp_train, args.topK,
                                   dataset.item_category, dataset.num_cate, 1.0, user_gender_map)
             
-            # Recall@20 (metrics_all[2][1]) değerini val_recall olarak atıyoruz
             val_recall = metrics_all[2][1]
             
             print(f'Evaluation validation recall@20: {val_recall:.4f}, time: {str(timedelta(seconds=int(time.time() - start)))}')

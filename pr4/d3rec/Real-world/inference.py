@@ -20,11 +20,10 @@ def main():
 
     print(f"Starting Inference. Device: {args.device}")
 
-    # Veriyi yükle
+    
     dataset, _, _, test_dataset, matrix_F = load_data(args, dataset_dir_path)
     loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
     
-    # Model ve Diffusion kurulumu
     diffusion = Diffusion(steps=args.steps, beta_start=args.beta_start, beta_end=args.beta_end,
                           noise_scale=args.noise_scale, noise_schedule=args.noise_schedule, device=args.device)
     
@@ -34,17 +33,15 @@ def main():
     if os.path.exists(best_model_path):
         checkpoint = torch.load(best_model_path, map_location='cpu', weights_only=False)
         if isinstance(checkpoint, dict):
-    # Eğer dosya sadece ağırlıkları içeriyorsa (state_dict)
             model.load_state_dict(checkpoint)
         else:
-    # Eğer dosya modelin kendisiyse (senin hatandaki durum)
             model.load_state_dict(checkpoint.state_dict())
         print(f"Model loaded correctly from {best_model_path}")
         
     
     model.eval()
 
-    # HOCANIN SENARYOLARI
+    #scenarios
     scenarios = [
         ("UNIFORM (Balanced)", [0.333, 0.333, 0.334]),
         ("PURE HIGH-POP (Popular Only)", [1.0, 0.0, 0.0]),
@@ -59,7 +56,7 @@ def main():
 def run_evaluation(args, model, diffusion, loader, dataset, user_gender_map, target_prob_list):
     res = {'ALL': {'t': [], 'p': []}, 'F': {'t': [], 'p': []}, 'M': {'t': [], 'p': []}}
     
-    # Test setindeki gerçek hedef itemları al (Recall hesaplamak için)
+    
     all_targets = []
     for u in range(dataset.sp_test.shape[0]):
         all_targets.append(dataset.sp_test.getrow(u).indices.tolist())
@@ -68,10 +65,7 @@ def run_evaluation(args, model, diffusion, loader, dataset, user_gender_map, tar
     with torch.no_grad():
         for x_0, _, _ in loader:
             x_0 = x_0.to(args.device)
-            # Hocanın istediği sabit hedef vektörünü batch boyutuna göre çoğalt
             target_prob = torch.tensor(target_prob_list, device=args.device).repeat(x_0.shape[0], 1)
-            
-            # Diffusion Örnekleme
             x_0_gui = diffusion.sample_new_interaction(model, x_0, target_prob, args.guide_w, args.sampling_steps)
             x_0_gui[x_0 > 0] = -np.inf # İzlediklerini çıkar
             
@@ -89,7 +83,6 @@ def run_evaluation(args, model, diffusion, loader, dataset, user_gender_map, tar
                     res['M']['t'].append(target); res['M']['p'].append(preds[i])
             u_idx += len(x_0)
 
-    # Sonuçları Yazdır
     for key in ['ALL', 'FEMALE', 'MALE']:
         k = key[0] if key != 'ALL' else 'ALL'
         if not res[k]['t']: continue

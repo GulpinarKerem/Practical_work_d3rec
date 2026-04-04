@@ -5,19 +5,18 @@ import numpy as np
 
 
 def set_random_seed(random_seed):
-    torch.manual_seed(random_seed) # cpu
-    torch.cuda.manual_seed(random_seed) # gpu
-    np.random.seed(random_seed) # numpy
-    random.seed(random_seed) # random and transforms
-    torch.backends.cudnn.deterministic=True # cudnn
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+    torch.backends.cudnn.deterministic = True
 
 
 def adjust_div(prob, temperature):
-    new_prob = prob + 1e-7  # prevent -inf of log
+    new_prob = prob + 1e-7
     logits = torch.log(new_prob) / temperature
     exp_logits = torch.exp(logits)
     new_prob = exp_logits / torch.sum(exp_logits, dim=-1)[:, None]
-
     return new_prob
 
 
@@ -28,11 +27,12 @@ def compute_recall(target_items, predict_items, topk):
     for user_id in range(num_users):
         if len(target_items[user_id]) == 0:
             continue
-        num_hit = 0
 
+        num_hit = 0
         for rank_idx in range(topk):
             if predict_items[user_id][rank_idx] in target_items[user_id]:
                 num_hit += 1
+
         sum_recall += num_hit / len(target_items[user_id])
 
     recall = sum_recall / num_users
@@ -51,12 +51,22 @@ def compute_metric(target_items, predict_items, topK, item_category, n_cate):
     num_users = len(predict_items)
 
     for idx, k in enumerate(topK):
-        sum_hitratio = sum_precision = sum_recall = sum_ndcg = sum_mrr = sum_entropy = sum_cov = 0.0
+        sum_hitratio = 0.0
+        sum_precision = 0.0
+        sum_recall = 0.0
+        sum_ndcg = 0.0
+        sum_mrr = 0.0
+        sum_entropy = 0.0
+        sum_cov = 0.0
+
         for user_id in range(num_users):
             if len(target_items[user_id]) == 0:
                 continue
+
             mrr_flag = True
-            num_hit = user_mrr = dcg = 0
+            num_hit = 0
+            user_mrr = 0.0
+            dcg = 0.0
 
             for rank_idx in range(k):
                 if predict_items[user_id][rank_idx] in target_items[user_id]:
@@ -69,9 +79,10 @@ def compute_metric(target_items, predict_items, topK, item_category, n_cate):
             idcg = 0.0
             for rank_idx in range(min(len(target_items[user_id]), k)):
                 idcg += 1.0 / np.log2(rank_idx + 2)
-            user_ndcg = (dcg / idcg)
 
-            cate_list = np.array([0.] * n_cate)
+            user_ndcg = dcg / idcg if idcg > 0 else 0.0
+
+            cate_list = np.array([0.0] * n_cate)
             for item in predict_items[user_id][:k]:
                 cate_list[item_category[item]] += (1 / len(item_category[item]))
 
@@ -104,91 +115,68 @@ def compute_metric(target_items, predict_items, topK, item_category, n_cate):
     return precisions, hit_ratios, recalls, ndcgs, mrrs, entropies, coverages
 
 
-def evaluate(args, model, diffusion, loader, sp_test, sp_train_valid, topk, item_category, n_cate, temperature, user_gender_map, is_best=False):
+def evaluate(
+    args,
+    model,
+    diffusion,
+    loader,
+    sp_test,
+    sp_train_valid,
+    topk,
+    item_category,
+    n_cate,
+    temperature=1.0,
+    is_best=False,
+):
+    """
+    Phase 6 training/validation evaluation:
+    - Uses the profile coming from the loader directly
+    - No gender-based manipulation
+    - This is the clean natural-profile evaluation used for model selection
+    """
     model.eval()
-    
-    results_all = {'target': [], 'pred': []}
-    results_female = {'target': [], 'pred': []}
-    results_male = {'target': [], 'pred': []}
-    
-    all_targets = []
-    for u in range(sp_test.shape[0]):
-        all_targets.append(sp_test.getrow(u).indices.tolist())
 
-    current_user_idx = 0 
+    target_items = []
+    for u in range(sp_test.shape[0]):
+        target_items.append(sp_test.getrow(u).indices.tolist())
+
+    predict_items = []
 
     with torch.no_grad():
-        for x_0, prob, prob_pred in loader:
-            x_0, prob = x_0.to(args.device), prob.to(args.device)
-            modified_prob = prob.clone()
-            
-            for i in range(len(modified_prob)):
-                uid_alt1 = current_user_idx + i + 1
-                uid_alt2 = current_user_idx + i
-                gender = user_gender_map.get(uid_alt1, user_gender_map.get(uid_alt2, "Unknown"))
+        for x_0, prob_in, _ in loader:
+            x_0 = x_0.to(args.device)
+            prob_in = prob_in.to(args.device)
 
-                if gender == "Unknown":
-                    gender = user_gender_map.get(str(uid_alt1), user_gender_map.get(str(uid_alt2), "M"))
+            if temperature != 1.0:
+                prob_in = adjust_div(prob_in, temperature)
 
-                if gender == 'F':
-                    modified_prob[i] = torch.tensor([0.1, 0.1, 0.8], device=args.device)
+            x_0_hat = diffusion.sample_new_interaction(
+                model,
+                x_0,
+                prob_in,
+                args.guide_w,
+                args.sampling_steps,
+                args.sampling_noise if hasattr(args, "sampling_noise") else False,
+            )
 
-            modified_prob = adjust_div(modified_prob, temperature)
-            x_0_hat = diffusion.sample_new_interaction(model, x_0, modified_prob, args.guide_w, args.sampling_steps)
-            
-            #mask n guess
+            # remove already-consumed items from candidate list
             x_0_hat[x_0 > 0] = -np.inf
+
             _, indices = torch.topk(x_0_hat, k=max(topk), dim=-1)
             preds = indices.cpu().numpy().tolist()
+            predict_items.extend(preds)
 
-            #groupem
-            for i in range(len(preds)):
-                uid_check = current_user_idx + i + 1
-                gender_check = user_gender_map.get(uid_check, user_gender_map.get(current_user_idx + i, "M"))
-                
-                target = all_targets[current_user_idx + i]
-                
-                results_all['target'].append(target)
-                results_all['pred'].append(preds[i])
-                
-                if gender_check == 'F':
-                    results_female['target'].append(target)
-                    results_female['pred'].append(preds[i])
-                else:
-                    results_male['target'].append(target)
-                    results_male['pred'].append(preds[i])
+    results = compute_metric(target_items, predict_items, topk, item_category, n_cate)
 
-            current_user_idx += len(x_0)
-
-    #report
-    print(f"\n" + "="*30 + f" REPORT (Temp: {temperature}) " + "="*30)
-    
-    def get_metrics(res):
-        if not res['target']: return None
-        return compute_metric(res['target'], res['pred'], [10, 20], item_category, n_cate)
-
-    metrics_all = get_metrics(results_all)
-    metrics_f = get_metrics(results_female)
-    metrics_m = get_metrics(results_male)
-
-    print("\n--- ALL USERS ---")
-    print_metric_results([10, 20], metrics_all)
-    
-    print("\n--- FEMALE USERS (Modified/Harnessed) ---")
-    if metrics_f: print_metric_results([10, 20], metrics_f)
-    
-    print("\n--- MALE USERS (Original/Natural) ---")
-    if metrics_m: print_metric_results([10, 20], metrics_m)
-    
-    print("="*80)
-    
-    return metrics_all 
+    if is_best:
+        return results
+    return results
 
 
 def calculate_entropy(cnt_cate_list):
     prob = cnt_cate_list / cnt_cate_list.sum()
 
-    prob_pos = prob + 1e-7  # prevent -inf of log
+    prob_pos = prob + 1e-7
     prob_pos = prob_pos / prob_pos.sum()
     entropy = -np.sum(prob_pos * np.log2(prob_pos))
 
@@ -206,7 +194,8 @@ def print_metric_results(topK, results):
 
 
 def make_directory(path):
-    if os.path.exists(path) is False: os.makedirs(path)
+    if os.path.exists(path) is False:
+        os.makedirs(path)
 
 
 def get_paths(args):
@@ -217,9 +206,7 @@ def get_paths(args):
     if args.save_model is True:
         make_directory(log_path)
         make_directory(log_dir_path)
+
     best_model_file_path = os.path.join(log_dir_path, 'best_model.pt')
 
-    return (
-        dataset_dir_path,
-        best_model_file_path
-    )
+    return dataset_dir_path, best_model_file_path
